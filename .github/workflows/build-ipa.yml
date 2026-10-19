@@ -1,0 +1,47 @@
+name: Build Unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build unsigned archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project SpellAndSpeak.xcodeproj \
+            -scheme SpellAndSpeak \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/SpellAndSpeak.xcarchive \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            ONLY_ACTIVE_ARCH=NO
+
+      - name: Package IPA
+        run: |
+          mkdir -p /tmp/Payload
+          cp -r $RUNNER_TEMP/SpellAndSpeak.xcarchive/Products/Applications/SpellAndSpeak.app /tmp/Payload/
+          cd /tmp
+          zip -r SpellAndSpeak-unsigned.ipa Payload
+          ls -lh SpellAndSpeak-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpellAndSpeak-unsigned-ipa
+          path: /tmp/SpellAndSpeak-unsigned.ipa
+          retention-days: 14
